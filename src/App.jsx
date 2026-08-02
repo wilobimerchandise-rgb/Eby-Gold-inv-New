@@ -8,7 +8,7 @@ import { Plus, Trash2, Download, Printer, Send, FileText, Receipt } from 'lucide
 const SUPABASE_URL = 'https://your-project.supabase.co';
 const SUPABASE_ANON_KEY = 'your-anon-key';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const LOGO_URL = '/logo.png'; // Your EG shield logo
+const LOGO_URL = '/logo.png'; 
 
 function numberToWords(num) {
   const a = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
