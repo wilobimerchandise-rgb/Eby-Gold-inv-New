@@ -3,7 +3,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Plus, Trash2, Download, Printer, Send, FileText, Receipt, ShoppingCart, Settings, History, Save } from 'lucide-react';
 
-const LOGO_URL = '/Eby-Gold-inv/logo.png';
+const LOGO_URL = '/Eby-Gold-inv-New/logo.png';
 
 const numberToWords = (num) => {
   const a = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
@@ -11,7 +11,7 @@ const numberToWords = (num) => {
   if (num === 0) return 'Zero Naira Only';
   const inWords = (n) => {
     if (n < 20) return a[n];
-    if (n < 100) return b[Math.floor(n/10)] + (n%10? ' ' + a[n%10] : '');
+    if (n < 100) return b[Math.floor(n/10)] + (n%10? ' + a[n%10] : '');
     if (n < 1000) return a[Math.floor(n/100)] + ' Hundred ' + inWords(n%100);
     if (n < 1000000) return inWords(Math.floor(n/1000)) + ' Thousand ' + inWords(n%1000);
     return inWords(Math.floor(n/1000000)) + ' Million ' + inWords(n%1000000);
@@ -24,7 +24,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [customers, setCustomers] = useState(JSON.parse(localStorage.getItem('eby_customers') || '[]'));
-  const [products, setProducts] = useState(JSON.parse(localStorage.getItem('eby_products') || '[{"name":"Rice 50kg","price":45000,"stock":10},{"name":"Oil 5L","price":12000,"stock":20}]'));
+  const [products, setProducts] = useState(JSON.parse(localStorage.getItem('eby_products') || '[{"name":"Rice 50kg","price":45000,"stock":10},{"name":"Oil 5L","price":12000,"stock":20},{"name":"Indomie Carton","price":8000,"stock":50}]'));
   const [history, setHistory] = useState(JSON.parse(localStorage.getItem('eby_history') || '[]'));
   const [items, setItems] = useState([{id:1, name:'', qty:1, price:0, stock:0}]);
   const [customer, setCustomer] = useState({name:'', phone:'', address:''});
@@ -259,4 +259,4 @@ export default function App() {
       </div>
     </div>
   )
-    }
+                                }
