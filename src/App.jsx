@@ -1,16 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { createClient } from '@supabase/supabase-js';
-import { Plus, Trash2, Download, Printer, Send, FileText, Receipt } from 'lucide-react';
+import { Plus, Trash2, Download, Printer, Send, FileText, Receipt, ShoppingCart, Settings } from 'lucide-react';
 
-// REPLACE WITH YOUR SUPABASE KEYS
-const SUPABASE_URL = 'https://your-project.supabase.co';
-const SUPABASE_ANON_KEY = 'your-anon-key';
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const LOGO_URL = '/Eby-Gold-inv-New/logo.png';
 
-function numberToWords(num) {
+// Convert number to words
+const numberToWords = (num) => {
   const a = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
   const b = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
   if (num === 0) return 'Zero Naira Only';
@@ -26,25 +22,23 @@ function numberToWords(num) {
 
 export default function App() {
   const [mode, setMode] = useState('invoice');
+  const [showSettings, setShowSettings] = useState(false);
   const [customers, setCustomers] = useState(JSON.parse(localStorage.getItem('eby_customers') || '[]'));
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState(JSON.parse(localStorage.getItem('eby_products') || '[{"name":"Rice 50kg","price":45000,"stock":10},{"name":"Oil 5L","price":12000,"stock":20},{"name":"Indomie Carton","price":8000,"stock":50}]'));
   const [items, setItems] = useState([{id:1, name:'', qty:1, price:0, stock:0}]);
   const [customer, setCustomer] = useState({name:'', phone:'', address:''});
   const [discount, setDiscount] = useState(0);
   const [paymentInfo, setPaymentInfo] = useState(JSON.parse(localStorage.getItem('eby_payment') || '{"bank":"UBA","accountName":"Eby-Gold Superstores","accountNo":"1023456789"}'));
-  const [currentUser, setCurrentUser] = useState('Admin');
+  const [newProduct, setNewProduct] = useState({name:'', price:0, stock:0});
   const invoiceRef = useRef();
 
   useEffect(() => { localStorage.setItem('eby_customers', JSON.stringify(customers)) }, [customers]);
+  useEffect(() => { localStorage.setItem('eby_products', JSON.stringify(products)) }, [products]);
   useEffect(() => { localStorage.setItem('eby_payment', JSON.stringify(paymentInfo)) }, [paymentInfo]);
-  
-  useEffect(() => {
-    supabase.from('products').select('*').then(({data}) => setProducts(data || []));
-  }, []);
 
   const addItem = () => setItems([...items, {id:Date.now(), name:'', qty:1, price:0, stock:0}]);
   const removeItem = (id) => setItems(items.filter(i => i.id!== id));
-  
+
   const updateItem = (id, field, value) => {
     setItems(items.map(i => {
       if(i.id === id) {
@@ -63,6 +57,13 @@ export default function App() {
     }));
   }
 
+  const addProduct = () => {
+    if(!newProduct.name) return;
+    setProducts([...products, {...newProduct, price:+newProduct.price, stock:+newProduct.stock}]);
+    setNewProduct({name:'', price:0, stock:0});
+    alert('Product Saved!');
+  }
+
   const subtotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
   const total = subtotal - discount;
 
@@ -79,24 +80,47 @@ export default function App() {
   const sendWhatsApp = async () => {
     await downloadPDF();
     const phone = customer.phone.replace(/\D/g,'').replace(/^0/, '234');
-    const msg = `Hi ${customer.name}, Please find your Eby-Gold Superstores Invoice attached.\nTotal: ₦${total.toLocaleString()}\nThank you for your business!`;
+    const msg = `Hi ${customer.name}, Please find your Eby-Gold Superstores ${mode} attached.\nTotal: ₦${total.toLocaleString()}\nThank you for your business!`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   }
 
   return (
     <div className="min-h-screen bg-gray-100 p-2 md:p-4">
-      {/* CONTROLS - NO PRINT */}
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');`}</style>
+
+      {/* CONTROLS */}
       <div className="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow mb-4 no-print">
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <img src={LOGO_URL} alt="Eby-Gold Logo" className="w-16 h-16 object-contain" />
             <h1 className="text-2xl font-bold text-brand-600">Eby-Gold Superstores</h1>
           </div>
-          <button onClick={() => setMode(mode==='invoice'?'receipt':'invoice')} className="flex items-center gap-2 px-3 py-2 bg-brand-500 text-white rounded text-sm">
-            {mode==='invoice'?<Receipt size={16}/>:<FileText size={16}/>} {mode.toUpperCase()}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowSettings(!showSettings)} className="flex items-center gap-2 px-3 py-2 bg-gray-700 text-white rounded text-sm font-semibold"><Settings size={16}/> Settings</button>
+            <button onClick={() => setMode(mode==='invoice'?'receipt':'invoice')} className="flex items-center gap-2 px-3 py-2 bg-brand-500 text-white rounded text-sm font-semibold">
+              {mode==='invoice'?<Receipt size={16}/>:<FileText size={16}/>} {mode.toUpperCase()}
+            </button>
+          </div>
         </div>
-        
+
+        {showSettings && (
+          <div className="border-t pt-4 mb-4">
+            <h3 className="font-semibold mb-2">Add Product</h3>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <input placeholder="Product Name" value={newProduct.name} onChange={e=>setNewProduct({...newProduct, name:e.target.value})}/>
+              <input type="number" placeholder="Price" value={newProduct.price} onChange={e=>setNewProduct({...newProduct, price:e.target.value})}/>
+              <input type="number" placeholder="Stock" value={newProduct.stock} onChange={e=>setNewProduct({...newProduct, stock:e.target.value})}/>
+            </div>
+            <button onClick={addProduct} className="bg-brand-500 text-white px-3 py-1 rounded text-sm">Save Product</button>
+            <h3 className="font-semibold mt-4 mb-2">Bank Details</h3>
+            <div className="grid grid-cols-3 gap-2">
+              <input placeholder="Bank" value={paymentInfo.bank} onChange={e=>setPaymentInfo({...paymentInfo, bank:e.target.value})}/>
+              <input placeholder="Account Name" value={paymentInfo.accountName} onChange={e=>setPaymentInfo({...paymentInfo, accountName:e.target.value})}/>
+              <input placeholder="Account No" value={paymentInfo.accountNo} onChange={e=>setPaymentInfo({...paymentInfo, accountNo:e.target.value})}/>
+            </div>
+          </div>
+        )}
+
         <h3 className="font-semibold mb-2">Customer Details</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
           <input list="customers" placeholder="Customer Name" value={customer.name} onChange={e => setCustomer({...customer, name:e.target.value})} />
@@ -105,7 +129,7 @@ export default function App() {
         </div>
         <datalist id="customers">{customers.map(c=><option key={c.name} value={c.name}/>)}</datalist>
 
-        <h3 className="font-semibold mb-2">Items</h3>
+        <h3 className="font-semibold mb-2 flex items-center gap-2"><ShoppingCart size={16}/> Items</h3>
         <div className="overflow-x-auto">
           <table>
             <thead><tr className="bg-brand-500 text-white">
@@ -123,9 +147,9 @@ export default function App() {
             ))}</tbody>
           </table>
         </div>
-        <datalist id="products">{products.map(p=><option key={p.id} value={p.name}/>)}</datalist>
+        <datalist id="products">{products.map(p=><option key={p.name} value={p.name}/>)}</datalist>
         <button onClick={addItem} className="mt-2 flex items-center gap-1 text-brand-600 font-semibold"><Plus size={16}/> Add Item</button>
-        
+
         <div className="text-right mt-4 space-y-1">
           <p>Subtotal: ₦{subtotal.toLocaleString()}</p>
           <p>Discount: ₦<input type="number" value={discount} onChange={e=>setDiscount(+e.target.value)} className="w-24 ml-1"/></p>
@@ -134,22 +158,20 @@ export default function App() {
         </div>
 
         <div className="flex flex-wrap gap-2 mt-4">
-          <button onClick={downloadPDF} className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded"><Download/> Download PDF</button>
-          <button onClick={sendWhatsApp} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded"><Send/> Send WhatsApp</button>
-          <button onClick={()=>window.print()} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded"><Printer/> Print</button>
+          <button onClick={downloadPDF} className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded font-semibold"><Download/> Download PDF</button>
+          <button onClick={sendWhatsApp} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded font-semibold"><Send/> Send WhatsApp</button>
+          <button onClick={()=>window.print()} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded font-semibold"><Printer/> Print</button>
         </div>
       </div>
 
-      {/* PRINTABLE INVOICE */}
+      {/* PRINTABLE INVOICE/RECEIPT */}
       <div ref={invoiceRef} className="max-w-4xl mx-auto bg-white p-8 relative" style={{width: mode==='receipt'?'80mm':'210mm', minHeight: mode==='invoice'?'297mm':'auto'}}>
-        {/* WATERMARK */}
         <img src={LOGO_URL} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-10 w-3/5 object-contain pointer-events-none"/>
-        
-        {/* HEADER */}
+
         <div className="flex flex-col items-center justify-center mb-4 relative z-10">
           <img src={LOGO_URL} alt="Eby-Gold Logo" className="w-20 h-20 object-contain mb-2" />
-          <h1 className="text-3xl font-bold text-center text-brand-600">Eby-Gold Superstores</h1>
-          <p className="text-center text-sm text-gray-600">Lagos, Nigeria</p>
+          <h1 className="text-3xl font-bold text-center text-brand-600 uppercase">{mode}</h1>
+          <p className="text-center text-sm text-gray-600">Lagos, Nigeria | Tel: 08012345678</p>
         </div>
         <hr className="border-brand-500"/>
 
@@ -157,6 +179,7 @@ export default function App() {
           <p><b>To:</b> {customer.name || '________'}</p>
           <p><b>Phone:</b> {customer.phone || '________'}</p>
           <p><b>Address:</b> {customer.address || '________'}</p>
+          <p><b>Date:</b> {new Date().toLocaleDateString()}</p>
         </div>
 
         <table className="mb-4 relative z-10">
@@ -186,8 +209,7 @@ export default function App() {
         </div>
 
         <p className="text-center mt-8 font-semibold relative z-10">Thank you for shopping with Eby-Gold Superstores.</p>
-        <p className="text-center text-xs relative z-10">Created by: {currentUser}</p>
       </div>
     </div>
   )
-  }
+      }
