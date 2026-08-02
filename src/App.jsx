@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Plus, Trash2, Download, Printer, Send, FileText, Receipt, ShoppingCart, Settings } from 'lucide-react';
+import { Plus, Trash2, Download, Printer, Send, FileText, Receipt, ShoppingCart, Settings, History, Save } from 'lucide-react';
 
-const LOGO_URL = '/Eby-Gold-inv-New/logo.png';
+const LOGO_URL = '/Eby-Gold-inv/logo.png';
 
-// Convert number to words
 const numberToWords = (num) => {
   const a = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
   const b = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
@@ -23,8 +22,10 @@ const numberToWords = (num) => {
 export default function App() {
   const [mode, setMode] = useState('invoice');
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [customers, setCustomers] = useState(JSON.parse(localStorage.getItem('eby_customers') || '[]'));
-  const [products, setProducts] = useState(JSON.parse(localStorage.getItem('eby_products') || '[{"name":"Rice 50kg","price":45000,"stock":10},{"name":"Oil 5L","price":12000,"stock":20},{"name":"Indomie Carton","price":8000,"stock":50}]'));
+  const [products, setProducts] = useState(JSON.parse(localStorage.getItem('eby_products') || '[{"name":"Rice 50kg","price":45000,"stock":10},{"name":"Oil 5L","price":12000,"stock":20}]'));
+  const [history, setHistory] = useState(JSON.parse(localStorage.getItem('eby_history') || '[]'));
   const [items, setItems] = useState([{id:1, name:'', qty:1, price:0, stock:0}]);
   const [customer, setCustomer] = useState({name:'', phone:'', address:''});
   const [discount, setDiscount] = useState(0);
@@ -35,6 +36,7 @@ export default function App() {
   useEffect(() => { localStorage.setItem('eby_customers', JSON.stringify(customers)) }, [customers]);
   useEffect(() => { localStorage.setItem('eby_products', JSON.stringify(products)) }, [products]);
   useEffect(() => { localStorage.setItem('eby_payment', JSON.stringify(paymentInfo)) }, [paymentInfo]);
+  useEffect(() => { localStorage.setItem('eby_history', JSON.stringify(history)) }, [history]);
 
   const addItem = () => setItems([...items, {id:Date.now(), name:'', qty:1, price:0, stock:0}]);
   const removeItem = (id) => setItems(items.filter(i => i.id!== id));
@@ -67,8 +69,40 @@ export default function App() {
   const subtotal = items.reduce((sum, i) => sum + i.qty * i.price, 0);
   const total = subtotal - discount;
 
+  const saveInvoice = () => {
+    if(!customer.name || items.filter(i=>i.name).length === 0) {
+      alert('Please add customer and at least 1 item');
+      return;
+    }
+    const newInv = {
+      id: Date.now(),
+      date: new Date().toLocaleString(),
+      mode,
+      customer,
+      items: items.filter(i=>i.name),
+      subtotal,
+      discount,
+      total
+    };
+    setHistory([newInv,...history]);
+    setCustomers(prev => prev.find(c=>c.name===customer.name)? prev : [...prev, customer]);
+    alert('Invoice Saved to History!');
+  }
+
+  const loadInvoice = (inv) => {
+    setMode(inv.mode);
+    setCustomer(inv.customer);
+    setItems(inv.items.map(i=>({...i, id:Date.now()+Math.random()})));
+    setDiscount(inv.discount);
+    setShowHistory(false);
+  }
+
+  const deleteInvoice = (id) => {
+    setHistory(history.filter(h=>h.id!== id));
+  }
+
   const downloadPDF = async () => {
-    const canvas = await html2canvas(invoiceRef.current, {scale:2, backgroundColor:'#fff', useCORS:true});
+    const canvas = await html2canvas(invoiceRef.current, {scale:2, backgroundColor:'#fff'});
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p','mm','a4');
     const width = pdf.internal.pageSize.getWidth();
@@ -80,28 +114,47 @@ export default function App() {
   const sendWhatsApp = async () => {
     await downloadPDF();
     const phone = customer.phone.replace(/\D/g,'').replace(/^0/, '234');
-    const msg = `Hi ${customer.name}, Please find your Eby-Gold Superstores ${mode} attached.\nTotal: ₦${total.toLocaleString()}\nThank you for your business!`;
+    const msg = `Hi ${customer.name}, Please find your Eby-Gold Superstores ${mode} attached.\nTotal: ₦${total.toLocaleString()}\nThank you!`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
   }
 
   return (
     <div className="min-h-screen bg-gray-100 p-2 md:p-4">
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');`}</style>
-
-      {/* CONTROLS */}
       <div className="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow mb-4 no-print">
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <div className="flex items-center gap-3">
             <img src={LOGO_URL} alt="Eby-Gold Logo" className="w-16 h-16 object-contain" />
             <h1 className="text-2xl font-bold text-brand-600">Eby-Gold Superstores</h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setShowHistory(!showHistory)} className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded text-sm font-semibold"><History size={16}/> History</button>
             <button onClick={() => setShowSettings(!showSettings)} className="flex items-center gap-2 px-3 py-2 bg-gray-700 text-white rounded text-sm font-semibold"><Settings size={16}/> Settings</button>
             <button onClick={() => setMode(mode==='invoice'?'receipt':'invoice')} className="flex items-center gap-2 px-3 py-2 bg-brand-500 text-white rounded text-sm font-semibold">
               {mode==='invoice'?<Receipt size={16}/>:<FileText size={16}/>} {mode.toUpperCase()}
             </button>
           </div>
         </div>
+
+        {showHistory && (
+          <div className="border-t pt-4 mb-4">
+            <h3 className="font-semibold mb-2">Invoice History - {history.length} Saved</h3>
+            <div className="max-h-60 overflow-y-auto">
+              {history.length === 0? <p className="text-gray-500">No saved invoices yet</p> :
+              history.map(inv => (
+                <div key={inv.id} className="border p-2 mb-2 rounded flex justify-between items-center">
+                  <div>
+                    <p className="font-semibold">{inv.mode.toUpperCase()} - {inv.customer.name}</p>
+                    <p className="text-sm">₦{inv.total.toLocaleString()} | {inv.date}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={()=>loadInvoice(inv)} className="bg-blue-500 text-white px-2 py-1 rounded text-xs">Load</button>
+                    <button onClick={()=>deleteInvoice(inv.id)} className="bg-red-500 text-white px-2 py-1 rounded text-xs">Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {showSettings && (
           <div className="border-t pt-4 mb-4">
@@ -158,30 +211,27 @@ export default function App() {
         </div>
 
         <div className="flex flex-wrap gap-2 mt-4">
+          <button onClick={saveInvoice} className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded font-semibold"><Save/> Save Invoice</button>
           <button onClick={downloadPDF} className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded font-semibold"><Download/> Download PDF</button>
           <button onClick={sendWhatsApp} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded font-semibold"><Send/> Send WhatsApp</button>
           <button onClick={()=>window.print()} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded font-semibold"><Printer/> Print</button>
         </div>
       </div>
 
-      {/* PRINTABLE INVOICE/RECEIPT */}
       <div ref={invoiceRef} className="max-w-4xl mx-auto bg-white p-8 relative" style={{width: mode==='receipt'?'80mm':'210mm', minHeight: mode==='invoice'?'297mm':'auto'}}>
         <img src={LOGO_URL} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-10 w-3/5 object-contain pointer-events-none"/>
-
         <div className="flex flex-col items-center justify-center mb-4 relative z-10">
           <img src={LOGO_URL} alt="Eby-Gold Logo" className="w-20 h-20 object-contain mb-2" />
           <h1 className="text-3xl font-bold text-center text-brand-600 uppercase">{mode}</h1>
           <p className="text-center text-sm text-gray-600">Lagos, Nigeria | Tel: 08012345678</p>
         </div>
         <hr className="border-brand-500"/>
-
         <div className="my-4 relative z-10">
           <p><b>To:</b> {customer.name || '________'}</p>
           <p><b>Phone:</b> {customer.phone || '________'}</p>
           <p><b>Address:</b> {customer.address || '________'}</p>
           <p><b>Date:</b> {new Date().toLocaleDateString()}</p>
         </div>
-
         <table className="mb-4 relative z-10">
           <thead><tr className="bg-gray-200">
             <th>S/N</th><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th>
@@ -196,20 +246,17 @@ export default function App() {
             </tr>
           ))}</tbody>
         </table>
-
         <div className="text-right relative z-10">
           <p><b>Subtotal:</b> ₦{subtotal.toLocaleString()}</p>
           <p><b>Discount:</b> ₦{discount.toLocaleString()}</p>
           <p className="text-xl font-bold bg-brand-500 text-white p-2"><b>Grand Total:</b> ₦{total.toLocaleString()}</p>
           <p className="italic mt-1">Amount in Words: {numberToWords(total)}</p>
         </div>
-
         <div className="mt-6 text-sm relative z-10">
           <p><b>Bank Details:</b> {paymentInfo.bank} - {paymentInfo.accountName} - {paymentInfo.accountNo}</p>
         </div>
-
         <p className="text-center mt-8 font-semibold relative z-10">Thank you for shopping with Eby-Gold Superstores.</p>
       </div>
     </div>
   )
-      }
+    }
