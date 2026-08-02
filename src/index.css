@@ -1,8 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-body { font-family: system-ui, sans-serif; }
-input, select { @apply border p-2 w-full rounded text-sm; }
-table { @apply w-full border-collapse; }
-td, th { @apply border-gray-300 p-2; }
-@media print {.no-print { display: none; } }
+
+body { font-family: 'Inter', sans-serif; }
+input, select { @apply border-gray-300 rounded px-2 py-1 w-full text-sm; }
+table { @apply w-full text-sm border-collapse; }
+th, td { @apply border-gray-200 px-2 py-1; }
+@media print {.no-print { display: none; } body{background:white} }
